@@ -5,13 +5,18 @@ import { Product } from '../model/product.js';
 import * as CloudFunctions from '../controller/cloud_functions.js';
 import * as Util from './util.js';
 import * as Constants from '../model/constants.js';
+import * as CloudStorage from '../controller/cloud_storage.js';
 let imageFile2Upload = null;
 
 export function addEventListeners(){
 
-    Elements.menuHome.addEventListener('click',()=>{
+    Elements.menuHome.addEventListener('click',async ()=>{
         history.pushState(null,null,routePathnames.HOME);
-        home_page();
+        const button = Elements.menuHome;
+        const label = Util.disableButton(button);
+        await home_page();
+        //await Util.sleep(1000);
+        Util.enableButton(button, label);
 
     });
 
@@ -29,7 +34,7 @@ export function addEventListeners(){
     Elements.formAddProduct.form.addEventListener('submit',addNewProduct);
 }
 
-export function home_page(){
+export async function home_page(){
 
     if(!currentUser){
         Elements.root.innerHTML='<h1>Protected Page</h1>'
@@ -43,6 +48,20 @@ export function home_page(){
             </button>
         </div>
     `;
+
+    let products;
+    try{
+        products = await CloudFunctions.getProductList();
+    }catch(e){
+        if(Constants.DEV) console.log(e);
+        Util.info('Cannot get product list', JSON.stringify(e));
+        return;
+    }
+
+    products.forEach(p => {
+        html += buildProductCard(p);
+    });
+
     Elements.root.innerHTML=html;
 }
 
@@ -54,14 +73,35 @@ async function addNewProduct(e){
 
     const product = new Product({name,price,summary});
 
+    const button = e.target.getElementsByTagName('button')[0];
+    const label = Util.disableButton(button);
+
     try{
         // upload the product image => imageName, imageURL
-        product.imageName = 'n/a';
-        product.imageURL = 'n/a';
+        const {imageName, imageURL} = await CloudStorage.uploadImage(imageFile2Upload);
+        product.imageName = imageName;
+        product.imageURL = imageURL;
         const docId = await CloudFunctions.addProduct(product.toFirestore());
         Util.info('Success!',`Added: ${product.name} ,docId=${docId}`, Elements.modalAddProduct);
+        e.target.reset();
+        Elements.formAddProduct.imageTag.removeAttribute('src');
+        await home_page();
     } catch(e){
         if(Constants.DEV) console.log(e);
-        Util.info('Add Product Failed',`${e.code}: ${e.name} = ${e.message}`);
+        Util.info('Add Product Failed',`${e.code}: ${e.name} = ${e.message}`,Elements.modalAddProduct);
     }
+
+    Util.enableButton(button, label);
+}
+
+function buildProductCard(product){
+    return `
+    <div class="card d-inline-flex" style="width: 18rem;">
+    <img src="${product.imageURL}" class="card-img-top">
+        <div class="card-body">
+            <h5 class="card-title">${product.name}</h5>
+            <p class="card-text">${product.price.toFixed(2)}<br>${product.summary}</p>
+        </div>
+    </div>
+    `;
 }

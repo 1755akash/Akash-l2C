@@ -4,6 +4,7 @@ import * as Elements from '../viewpage/elements.js';
 import * as Constants from '../model/constants.js';
 import * as Util from '../viewpage/util.js';
 import { routing,routePathnames } from './route.js';
+import * as WelcomeMessage from '../viewpage/welcome_page.js';
 const auth = getAuth();
 
 export let currentUser = null;
@@ -72,6 +73,8 @@ function AuthStateChangedObserver(user) {
                 elements[i].style.display = 'none';
             }
         }
+
+        Elements.root.innerHTML=WelcomeMessage.html;
 
         history.pushState(null,null,routePathnames.HOME);
         //Elements.root.innerHTML = WelcomeMessage.html;
