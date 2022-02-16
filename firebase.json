@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "akethavath-l2p2",
     "public": "public",
     "ignore": [
       "firebase.json",
